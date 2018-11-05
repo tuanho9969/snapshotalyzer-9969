@@ -43,6 +43,8 @@ def list_instances(project):
         )
     return
 
+
+
 @cli.group('volumes')
 def volumes():
     """Commands for volumes"""
@@ -71,8 +73,9 @@ def snapshots():
 @snapshots.command('list')
 @click.option('--project', default=None,
     help="Only instances in project (tag Project:<name>")
-
-def list_snapshots(project):
+@click.option('--all', 'list_all', default=False, is_flag=True,
+    help="List all snapshots, not just most recent one")
+def list_snapshots(project, list_all):
 
     instances = filter_instances(project)
 
@@ -87,7 +90,7 @@ def list_snapshots(project):
                     s.start_time.strftime("%c")
                 )))
 
-                if s.state == "completed" : break
+                if s.state == "completed" and not list_all : break
     return
 
 if __name__ == '__main__':
