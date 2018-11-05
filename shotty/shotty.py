@@ -48,8 +48,6 @@ def volumes():
     """Commands for volumes"""
 
 @volumes.command('list')
-    "Lists EC2 Volumes"
-    
 @click.option('--project', default=None,
     help="Only instances in project (tag Project:<name>)")
 def list_volumes(project):
@@ -65,6 +63,32 @@ def list_volumes(project):
             str(v.size) + "GiB",
             v.encrypted and "Encrypted" or "Not Encrypted"
             )))
+
+@cli.group('snapshots')
+def snapshots():
+    """Commands for snapshots"""
+
+@snapshots.command('list')
+@click.option('--project', default=None,
+    help="Only instances in project (tag Project:<name>")
+
+def list_snapshots(project):
+
+    instances = filter_instances(project)
+
+    for i in instances:
+        for v in i.volumes.all():
+            for s in v.snapshots.all():
+                print(', '.join((
+                    s.id,
+                    v.id,
+                    i.id,
+                    s.state,
+                    s.start_time.strftime("%c")
+                )))
+
+                if s.state == "completed" : break
+    return
 
 if __name__ == '__main__':
     cli()
