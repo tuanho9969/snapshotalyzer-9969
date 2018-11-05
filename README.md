@@ -11,6 +11,7 @@ aws configure --profile shotty
 
 #Running
 
-pipenv run python shotty/shotty.py <command> <--project=PROJECT>
+pipenv run python shotty/shotty.py <command> <sub-command> <--project=PROJECT>
 
-*command* instances
+*command* instances volumes snapshots
+*sub-command* depends on each command

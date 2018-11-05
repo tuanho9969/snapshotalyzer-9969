@@ -16,6 +16,10 @@ def filter_instances(project):
         instances = ec2.instances.all()
     return instances
 
+def has_pending_snapshot(volumes):
+    snapshots = list(volumes.snapshots.all())
+    return snapshots and snapshots[0].state == "pending"
+
 @click.group()
 def cli():
     """Shotty manage EC2 snapshots"""
@@ -33,7 +37,7 @@ def list_instances(project):
     instances = filter_instances(project)
 
     for i in instances:
-        tags = {t['Key']:t['Value'] for t in i.tags or []}
+        tags = { t['Key'] : t['Value'] for t in i.tags or []}
         print(", ".join((
             i.id,
             i.state['Name'],
@@ -79,6 +83,34 @@ def stop_instances(project):
             print("Could not stop {0}".format(i.id) + str(e))
             continue
     return
+
+@instances.command('snapshots')
+@click.option('--project', default=None,
+    help="Only snapshots in project (tag Project:<name>)")
+
+def snapshot_instances(project):
+    "Take snapshot for EC2 instances"
+
+    instances = filter_instances(project)
+    for i in instances:
+        print("Stopping {0}".format(i.id))
+
+        i.stop()
+        i.wait_until_stopped()
+        for v in i.volumes.all():
+            if has_pending_snapshot(v):
+                print("Skipping {0}, snapshot already in progress".format(v.id))
+                continue
+            print("Creating snapshot of {0}".format(v.id))
+            v.create_snapshot(Description="Created by Snapshotalyzer 30000")
+
+        print("Starting {0}".format(i.id))
+        i.start()
+        i.wait_until_running()
+    print("Job done!")
+    return
+
+
 
 @cli.group('volumes')
 def volumes():
@@ -127,6 +159,7 @@ def list_snapshots(project, list_all):
 
                 if s.state == "completed" and not list_all : break
     return
+
 
 if __name__ == '__main__':
     cli()
