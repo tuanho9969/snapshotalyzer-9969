@@ -22,6 +22,10 @@ def has_pending_snapshot(volumes):
     snapshots = list(volumes.snapshots.all())
     return snapshots and snapshots[0].state == "pending"
 
+def has_running_state(instance):
+    filters = [{'Name':'instance-state-name', 'Values':['running']}]
+    return instance == ec2.instances.filter(Filters=filters)
+
 @click.group()
 def cli():
     """Shotty manage EC2 snapshots"""
@@ -102,11 +106,14 @@ def snapshot_instances(project,instance):
     "Take snapshot for EC2 instances"
 
     instances = filter_instances(project,instance)
-    for i in instances:
-        print("Stopping {0}".format(i.id))
 
-        i.stop()
-        i.wait_until_stopped()
+    for i in instances:
+
+        if i.state['Code'] == 16:
+            r_instances = i
+            print("Stopping {0}".format(i.id))
+            i.stop()
+            i.wait_until_stopped()
         for v in i.volumes.all():
             if has_pending_snapshot(v):
                 print("Skipping {0}, snapshot already in progress".format(v.id))
@@ -118,13 +125,14 @@ def snapshot_instances(project,instance):
                 print("Cannot create snapshot of {0}".format(v.id) + str(e))
                 continue
 
-        print("Starting {0}".format(i.id))
-        i.start()
-        i.wait_until_running()
-    print("Job done!")
+        if r_instances == None:
+            print("Job done!")
+        else:
+            print("Starting instance {0}".format(r_instances.id))
+            r_instances.start()
+            r_instances.wait_until_running()
+            print("Job done!")
     return
-
-
 
 @cli.group('volumes')
 def volumes():
@@ -173,7 +181,6 @@ def list_snapshots(project, list_all):
 
                 if s.state == "completed" and not list_all : break
     return
-
 
 if __name__ == '__main__':
     cli()
